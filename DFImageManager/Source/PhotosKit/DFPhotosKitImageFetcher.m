@@ -27,7 +27,7 @@
 #import <Photos/Photos.h>
 
 
-NS_CLASS_AVAILABLE_IOS(8_0) @interface _DFPhotosKitImageFetchOperation : NSOperation
+NS_CLASS_AVAILABLE_IOS(8_0) @interface _DFPhotosKitImageFetchOperation : NSOperation <DFImageFetchingOperation>
 
 @property (nonatomic, readonly) UIImage *result;
 @property (nonatomic, readonly) NSDictionary *info;
@@ -122,7 +122,7 @@ static inline PHImageContentMode _PHContentModeForDFContentMode(DFImageContentMo
             options1.resizeMode == options2.resizeMode);
 }
 
-- (nonnull NSOperation *)startOperationWithRequest:(nonnull DFImageRequest *)request progressHandler:(nullable DFImageFetchingProgressHandler)progressHandler completion:(nullable DFImageFetchingCompletionHandler)completion {
+- (nonnull id<DFImageFetchingOperation>)startOperationWithRequest:(nonnull DFImageRequest *)request progressHandler:(nullable DFImageFetchingProgressHandler)progressHandler completion:(nullable DFImageFetchingCompletionHandler)completion {
     _DFPhotosKitRequestOptions options = [self _requestOptionsFromUserInfo:request.options.userInfo];
     PHImageRequestOptions *requestOptions = [PHImageRequestOptions new];
     requestOptions.networkAccessAllowed = request.options.allowsNetworkAccess;
@@ -275,6 +275,16 @@ static inline PHImageContentMode _PHContentModeForDFContentMode(DFImageContentMo
     [self willChangeValueForKey:@"isExecuting"];
     _executing = executing;
     [self didChangeValueForKey:@"isExecuting"];
+}
+
+#pragma mark - DFImageFetchingOperation
+
+- (void)cancelImageFetching {
+    [self cancel];
+}
+
+- (void)setImageFetchingPriority:(DFImageRequestPriority)priority {
+    self.queuePriority = DFImageRequestPriorityToNSOperationQueuePriority(priority);
 }
 
 @end

@@ -54,16 +54,23 @@ typedef NS_ENUM(NSInteger, DFImageRequestCachePolicy) {
 /*! Image request priority.
  */
 typedef NS_ENUM(NSInteger, DFImageRequestPriority) {
-    DFImageRequestPriorityVeryLow = NSOperationQueuePriorityVeryLow,
-    DFImageRequestPriorityLow = NSOperationQueuePriorityLow,
-    DFImageRequestPriorityNormal = NSOperationQueuePriorityNormal,
-    DFImageRequestPriorityHigh = NSOperationQueuePriorityHigh,
-    DFImageRequestPriorityVeryHigh = NSOperationQueuePriorityVeryHigh
+    DFImageRequestPriorityVeryLow,
+    DFImageRequestPriorityLow ,
+    DFImageRequestPriorityNormal,
+    DFImageRequestPriorityHigh,
+    DFImageRequestPriorityVeryHigh
 };
 
-/*! Progress handler, called on a main thread.
- */
-typedef void (^DFImageRequestProgressHandler)(double progress);
+static inline NSOperationQueuePriority
+DFImageRequestPriorityToNSOperationQueuePriority(DFImageRequestPriority priority) {
+    switch (priority) {
+        case DFImageRequestPriorityVeryHigh: return NSOperationQueuePriorityVeryHigh;
+        case DFImageRequestPriorityHigh: return NSOperationQueuePriorityHigh;
+        case DFImageRequestPriorityNormal: return NSOperationQueuePriorityNormal;
+        case DFImageRequestPriorityLow: return NSOperationQueuePriorityLow;
+        case DFImageRequestPriorityVeryLow: return NSOperationQueuePriorityVeryLow;
+    }
+}
 
 /*! The error domain for DFImageManager.
  */

@@ -22,6 +22,7 @@
 
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
+#import "DFImageFetchingOperation.h"
 
 @class DFImageRequest;
 
@@ -57,7 +58,7 @@ typedef void (^DFImageFetchingCompletionHandler)(UIImage *__nullable image, NSDi
  @param completion Completion handler, can be called on any thread.
  @return The operation that implements fetching.
  */
-- (nonnull NSOperation *)startOperationWithRequest:(nonnull DFImageRequest *)request progressHandler:(nullable DFImageFetchingProgressHandler)progressHandler completion:(nullable DFImageFetchingCompletionHandler)completion;
+- (nonnull id<DFImageFetchingOperation>)startOperationWithRequest:(nonnull DFImageRequest *)request progressHandler:(nullable DFImageFetchingProgressHandler)progressHandler completion:(nullable DFImageFetchingCompletionHandler)completion;
 
 @optional
 

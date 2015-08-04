@@ -125,7 +125,7 @@
 @interface _DFImageLoadOperation : NSObject
 
 @property (nonnull, nonatomic, readonly) _DFImageRequestKey *key;
-@property (nullable, nonatomic) NSOperation *operation;
+@property (nullable, nonatomic) id<DFImageFetchingOperation> operation;
 @property (nonnull, nonatomic, readonly) NSMutableArray *tasks;
 @property (nonatomic) int64_t totalUnitCount;
 @property (nonatomic) int64_t completedUnitCount;
@@ -148,9 +148,7 @@
         for (DFImageManagerImageLoaderTask *task in _tasks) {
             priority = MAX(task.priority, priority);
         }
-        if (_operation.queuePriority != (NSOperationQueuePriority)priority) {
-            _operation.queuePriority = (NSOperationQueuePriority)priority;
-        }
+        [_operation setImageFetchingPriority:priority];
     }
 }
 
@@ -268,7 +266,7 @@
         if (operation) {
             [operation.tasks removeObject:task];
             if (operation.tasks.count == 0) {
-                [operation.operation cancel];
+                [operation.operation cancelImageFetching];
                 [_loadOperations removeObjectForKey:operation.key];
             } else {
                 [operation updateOperationPriority];

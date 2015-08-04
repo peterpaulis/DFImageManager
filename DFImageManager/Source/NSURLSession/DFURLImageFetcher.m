@@ -30,19 +30,29 @@
 NSString *const DFURLRequestCachePolicyKey = @"DFURLRequestCachePolicyKey";
 
 
-@interface _DFURLSessionOperation : NSOperation
+@interface _DFURLImageFetchingOperation : NSObject <DFImageFetchingOperation>
 
 @property (nonatomic, copy) void (^cancellationHandler)(void);
-@property (nonatomic, copy) void (^priorityHandler)(NSOperationQueuePriority priority);
+@property (nonatomic, copy) void (^priorityHandler)(DFImageRequestPriority priority);
 
 @end
 
-@implementation _DFURLSessionOperation
+@implementation _DFURLImageFetchingOperation {
+    BOOL _cancelled;
+    DFImageRequestPriority _priority;
+}
 
-- (void)cancel {
+- (instancetype)init {
+    if (self = [super init]) {
+        _priority = DFImageRequestPriorityNormal;
+    }
+    return self;
+}
+
+- (void)cancelImageFetching {
     @synchronized(self) {
-        if (!self.isCancelled) {
-            [super cancel];
+        if (!_cancelled) {
+            _cancelled = YES;
             if (self.cancellationHandler) {
                 self.cancellationHandler();
             }
@@ -50,10 +60,14 @@ NSString *const DFURLRequestCachePolicyKey = @"DFURLRequestCachePolicyKey";
     }
 }
 
-- (void)setQueuePriority:(NSOperationQueuePriority)queuePriority {
-    [super setQueuePriority:queuePriority];
-    if (self.priorityHandler) {
-        self.priorityHandler(queuePriority);
+- (void)setImageFetchingPriority:(DFImageRequestPriority)priority {
+    @synchronized(self) {
+        if (_priority != priority) {
+            _priority = priority;
+            if (self.priorityHandler) {
+                self.priorityHandler(priority);
+            }
+        }
     }
 }
 
@@ -275,7 +289,7 @@ static const NSTimeInterval _kCommandExecutionInterval = 0.005; // 5 ms
     return request1 == request2 || [(NSURL *)request1.resource isEqual:(NSURL *)request2.resource];
 }
 
-- (nonnull NSOperation *)startOperationWithRequest:(nonnull DFImageRequest *)request progressHandler:(nullable DFImageFetchingProgressHandler)progressHandler completion:(nullable DFImageFetchingCompletionHandler)completion {
+- (nonnull id<DFImageFetchingOperation>)startOperationWithRequest:(nonnull DFImageRequest *)request progressHandler:(nullable DFImageFetchingProgressHandler)progressHandler completion:(nullable DFImageFetchingCompletionHandler)completion {
     NSURLRequest *URLRequest = [self _URLRequestForImageRequest:request];
     NSURLSessionDataTask *__block task = [self.sessionDelegate URLImageFetcher:self dataTaskWithRequest:URLRequest progressHandler:^(int64_t countOfBytesReceived, int64_t countOfBytesExpectedToReceive) {
         if (progressHandler) {
@@ -292,14 +306,13 @@ static const NSTimeInterval _kCommandExecutionInterval = 0.005; // 5 ms
         }
     }];
     
-    // Passive container, DFURLImageFetcher never even start the operation, it only uses it's -cancel and -setPririty APIs. DFImageManager should probably have a specific protocol instead of NSOperation, because sometimes there is not need in one.
-    _DFURLSessionOperation *operation = [_DFURLSessionOperation new];
+    _DFURLImageFetchingOperation *operation = [_DFURLImageFetchingOperation new];
     operation.cancellationHandler = ^{
         [_executor executeCommand:[[_DFSessionTaskCancelCommand alloc] initWithTask:task]];
     };
-    operation.priorityHandler = ^(NSOperationQueuePriority priority) {
+    operation.priorityHandler = ^(DFImageRequestPriority priority) {
         if ([task respondsToSelector:@selector(setPriority:)]) {
-            task.priority = [DFURLImageFetcher _taskPriorityForQueuePriority:priority];
+            task.priority = [DFURLImageFetcher _taskPriorityForImageRequestPriority:priority];
         }
     };
     
@@ -308,13 +321,13 @@ static const NSTimeInterval _kCommandExecutionInterval = 0.005; // 5 ms
     return operation;
 }
 
-+ (float)_taskPriorityForQueuePriority:(NSOperationQueuePriority)queuePriority {
++ (float)_taskPriorityForImageRequestPriority:(DFImageRequestPriority)queuePriority {
     switch (queuePriority) {
-        case NSOperationQueuePriorityVeryHigh: return 0.9f;
-        case NSOperationQueuePriorityHigh: return 0.7f;
-        case NSOperationQueuePriorityNormal: return 0.5f;
-        case NSOperationQueuePriorityLow: return 0.3f;
-        case NSOperationQueuePriorityVeryLow: return 0.1f;
+        case DFImageRequestPriorityVeryHigh: return 0.9f;
+        case DFImageRequestPriorityHigh: return 0.7f;
+        case DFImageRequestPriorityNormal: return 0.5f;
+        case DFImageRequestPriorityLow: return 0.3f;
+        case DFImageRequestPriorityVeryLow: return 0.1f;
     }
 }
 

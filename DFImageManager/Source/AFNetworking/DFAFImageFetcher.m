@@ -28,19 +28,29 @@
 
 NSString *const DFAFRequestCachePolicyKey = @"DFAFRequestCachePolicyKey";
 
-@interface _DFAFOperation : NSOperation
+@interface _DFAFImageFetchingOperation : NSObject<DFImageFetchingOperation>
 
 @property (nonatomic, copy) void (^cancellationHandler)(void);
-@property (nonatomic, copy) void (^priorityHandler)(NSOperationQueuePriority priority);
+@property (nonatomic, copy) void (^priorityHandler)(DFImageRequestPriority priority);
 
 @end
 
-@implementation _DFAFOperation
+@implementation _DFAFImageFetchingOperation {
+    BOOL _cancelled;
+    DFImageRequestPriority _priority;
+}
 
-- (void)cancel {
+- (instancetype)init {
+    if (self = [super init]) {
+        _priority = DFImageRequestPriorityNormal;
+    }
+    return self;
+}
+
+- (void)cancelImageFetching {
     @synchronized(self) {
-        if (!self.isCancelled) {
-            [super cancel];
+        if (!_cancelled) {
+            _cancelled = YES;
             if (self.cancellationHandler) {
                 self.cancellationHandler();
             }
@@ -48,10 +58,14 @@ NSString *const DFAFRequestCachePolicyKey = @"DFAFRequestCachePolicyKey";
     }
 }
 
-- (void)setQueuePriority:(NSOperationQueuePriority)queuePriority {
-    [super setQueuePriority:queuePriority];
-    if (self.priorityHandler) {
-        self.priorityHandler(queuePriority);
+- (void)setImageFetchingPriority:(DFImageRequestPriority)priority {
+    @synchronized(self) {
+        if (_priority != priority) {
+            _priority = priority;
+            if (self.priorityHandler) {
+                self.priorityHandler(priority);
+            }
+        }
     }
 }
 
@@ -119,7 +133,7 @@ NSString *const DFAFRequestCachePolicyKey = @"DFAFRequestCachePolicyKey";
     return request1 == request2 || [(NSURL *)request1.resource isEqual:(NSURL *)request2.resource];
 }
 
-- (nonnull NSOperation *)startOperationWithRequest:(nonnull DFImageRequest *)request progressHandler:(nullable DFImageFetchingProgressHandler)progressHandler completion:(nullable DFImageFetchingCompletionHandler)completion {
+- (nonnull id<DFImageFetchingOperation>)startOperationWithRequest:(nonnull DFImageRequest *)request progressHandler:(nullable DFImageFetchingProgressHandler)progressHandler completion:(nullable DFImageFetchingCompletionHandler)completion {
     NSURLRequest *URLRequest = [self _URLRequestForImageRequest:request];
     DFAFImageFetcher *__weak weakSelf = self;
     NSURLSessionDataTask *__block task = [self.sessionManager dataTaskWithRequest:URLRequest completionHandler:^(NSURLResponse *URLResponse, UIImage *result, NSError *error) {
@@ -144,13 +158,13 @@ NSString *const DFAFRequestCachePolicyKey = @"DFAFRequestCachePolicyKey";
         _dataTaskDelegates[task] = dataTaskDelegate;
     }
     
-    _DFAFOperation *operation = [_DFAFOperation new];
+    _DFAFImageFetchingOperation *operation = [_DFAFImageFetchingOperation new];
     operation.cancellationHandler = ^{
         [task cancel];
     };
-    operation.priorityHandler = ^(NSOperationQueuePriority priority){
+    operation.priorityHandler = ^(DFImageRequestPriority priority){
         if ([task respondsToSelector:@selector(setPriority:)]) {
-            task.priority = [DFAFImageFetcher _taskPriorityForQueuePriority:priority];
+            task.priority = [DFAFImageFetcher _taskPriorityForImageRequestPriority:priority];
         }
     };
     return operation;
@@ -182,13 +196,13 @@ NSString *const DFAFRequestCachePolicyKey = @"DFAFRequestCachePolicyKey";
     return [URLRequest copy];
 }
 
-+ (float)_taskPriorityForQueuePriority:(NSOperationQueuePriority)queuePriority {
++ (float)_taskPriorityForImageRequestPriority:(DFImageRequestPriority)queuePriority {
     switch (queuePriority) {
-        case NSOperationQueuePriorityVeryHigh: return 0.9f;
-        case NSOperationQueuePriorityHigh: return 0.7f;
-        case NSOperationQueuePriorityNormal: return 0.5f;
-        case NSOperationQueuePriorityLow: return 0.3f;
-        case NSOperationQueuePriorityVeryLow: return 0.1f;
+        case DFImageRequestPriorityVeryHigh: return 0.9f;
+        case DFImageRequestPriorityHigh: return 0.7f;
+        case DFImageRequestPriorityNormal: return 0.5f;
+        case DFImageRequestPriorityLow: return 0.3f;
+        case DFImageRequestPriorityVeryLow: return 0.1f;
     }
 }
 

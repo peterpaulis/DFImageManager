@@ -28,7 +28,7 @@
 #import <AssetsLibrary/AssetsLibrary.h>
 #import <UIKit/UIKit.h>
 
-@interface _DFAssetsLibraryImageFetchOperation : NSOperation
+@interface _DFAssetsLibraryImageFetchOperation : NSOperation <DFImageFetchingOperation>
 
 @property (nonatomic) DFALAssetImageSize imageSize;
 @property (nonatomic) DFALAssetVersion version;
@@ -139,7 +139,7 @@ static inline NSURL *_ALAssetURL(id resource) {
     return DFALAssetImageSizeFullsize;
 }
 
-- (nonnull NSOperation *)startOperationWithRequest:(nonnull DFImageRequest *)request progressHandler:(nullable DFImageFetchingProgressHandler)progressHandler completion:(nullable DFImageFetchingCompletionHandler)completion {
+- (nonnull id<DFImageFetchingOperation>)startOperationWithRequest:(nonnull DFImageRequest *)request progressHandler:(nullable DFImageFetchingProgressHandler)progressHandler completion:(nullable DFImageFetchingCompletionHandler)completion {
     _DFAssetsLibraryImageFetchOperation *operation;
     if ([request.resource isKindOfClass:[DFALAsset class]]) {
         operation = [[_DFAssetsLibraryImageFetchOperation alloc] initWithAsset:((DFALAsset *)request.resource).asset];
@@ -308,6 +308,16 @@ static inline NSURL *_ALAssetURL(id resource) {
     [self willChangeValueForKey:@"isExecuting"];
     _executing = executing;
     [self didChangeValueForKey:@"isExecuting"];
+}
+
+#pragma mark - DFImageFetchingOperation
+
+- (void)cancelImageFetching {
+    [self cancel];
+}
+
+- (void)setImageFetchingPriority:(DFImageRequestPriority)priority {
+    self.queuePriority = DFImageRequestPriorityToNSOperationQueuePriority(priority);
 }
 
 @end
